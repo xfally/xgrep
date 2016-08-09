@@ -1,0 +1,272 @@
+#!/bin/bash
+# This *grep* script is created to find file or search content from current path (recursively) in your shell.
+# Ver 0.1
+# by pax (coolwinding@gmail.com) 160808
+# Licence: MIT
+
+# How to install and active?
+# 1. Copy me to ~/bin/ or any path the var $PATH includes.
+# 2a. Do `. ~/bin/xgrep` in your shell to active all functions.
+# 2b. Recommend to add `. ~/bin/xgrep` in your ~/.bashrc file,
+#     then you don't have to do active every time after one new shell open.
+# Now you can do `xfind*` or `xgrep*` function at any path.
+
+### START ###
+
+# debug, log...
+DEBUG=1
+
+# exit error code
+# refer to /usr/include/sysexits.h
+E_OK=0
+E_USAGE=64
+E_NOT_FOUND=71
+
+# ignore some path, e.g. repo, git...
+# you can add more path to ignore
+_ignore_these_files="-iname .repo -prune -o -iname .git -prune -o -iname res-min -prune -o -iname *.swp -prune"
+
+#############
+# find file #
+#############
+
+function _xfind()
+{
+	if [[ -z $1 ]]
+	then
+		echo -e "\033[35m***xfind*** Find any file from current path (recursively)!\033[0m" >&2
+		echo -e "\033[31mUsage1: xfind[i] filename\033[0m (recommended) find filename" >&2
+		echo -e "\033[31mUsage2: xfind[i] .\033[0m list all files under current path" >&2
+		echo -e "\033[31mUsage3: _xfind filename [ignorecase? 1 or 0]\033[0m find file with filename" >&2
+		if [[ "x$DEBUG" == "x1" ]]
+		then
+			return $E_USAGE
+		else
+			exit $E_USAGE
+		fi
+	fi
+
+	local key=$1
+
+	if [[ "x$2" == "x1" ]]
+	then
+		local ignorecase="-iname" # ignore case of filename
+	else
+		local ignorecase="-name"
+	fi
+
+	find . $_ignore_these_files -o $ignorecase "*$key*" -print | grep "$key"
+}
+
+# any files
+function xfind()
+{
+	_xfind "$@"
+}
+
+function xfindi()
+{
+	_xfind "$@" 1
+}
+
+##################
+# search content #
+##################
+
+function _xgrep()
+{
+	if [[ -z $2 ]]
+	then
+		echo -e "\033[35m***xgrep*** Search any content from current path (recursively)!\033[0m" >&2
+		echo -e "\033[31mUsage1: xgrep[i][{type}] content\033[0m (recommended) grep content" >&2
+		echo -e "\033[31mUsage2: xgrep[i][{type}] .\033[0m cat every file's full content" >&2
+		echo -e "\033[31mUsage3: _xgrep content filetypes(*regex*) [ignorecase? 1 or 0]\033[0m grep content of files with filetype regex" >&2
+		if [[ "x$DEBUG" == "x1" ]]
+		then
+			return $E_USAGE
+		else
+			exit $E_USAGE
+		fi
+	fi
+
+	local key=$1
+	#echo $key
+	local regex=$2
+	#echo $regex
+
+	if [[ "x$3" == "x1" ]]
+	then
+		local ignorecase="-i" # ignore case of content
+	else
+		local ignorecase=""
+	fi
+
+	# Note: file type (`-iregex`) is case insensitive by default.
+	find . $_ignore_these_files -o -type f -iregex "$regex" -print0 | xargs -0 grep $ignorecase --color -n "$key"
+}
+
+# any files
+_xregex=".+"
+
+function xgrep()
+{
+	_xgrep "$@" $_xregex
+}
+
+function xgrepi()
+{
+	_xgrep "$@" $_xregex 1
+}
+
+# c, c++, m (objective-c), header
+_xregexc=".+\.\(c\|cc\|cpp\|m\|h\)"
+
+function xgrepc()
+{
+	_xgrep "$@" $_xregexc
+}
+
+function xgrepic()
+{
+	_xgrep "$@" $_xregexc 1
+}
+
+# header
+_xregexh=".+\.\(h\)"
+
+function xgreph()
+{
+	_xgrep "$@" $_xregexh
+}
+
+function xgrepih()
+{
+	_xgrep "$@" $_xregexh 1
+}
+
+# java
+_xregexjava=".+\.\(java\)"
+
+function xgrepjava()
+{
+	_xgrep "$@" $_xregexjava
+}
+
+function xgrepijava()
+{
+	_xgrep "$@" $_xregexjava 1
+}
+
+# makefile
+_xregexmk=".*\(Makefile\|\.mk\|\.bb\)"
+
+function xgrepmk()
+{
+	_xgrep "$@" $_xregexmk
+}
+
+function xgrepimk()
+{
+	_xgrep "$@" $_xregexmk 1
+}
+
+# javascript, json
+_xregexjs=".+\.\(js\|json\)"
+
+function xgrepjs()
+{
+	_xgrep "$@" $_xregexjs
+}
+
+function xgrepijs()
+{
+	_xgrep "$@" $_xregexjs 1
+}
+
+# resource file, like xml, json...
+_xregexres=".+\.\(xml\|json\)"
+
+function xgrepres()
+{
+	_xgrep "$@" $_xregexres
+}
+
+function xgrepires()
+{
+	_xgrep "$@" $_xregexres 1
+}
+
+# pdf
+# depend on *pdftotext*
+function checkpdftotext()
+{
+	local pdftotext=`whereis -b -B /usr/bin -f pdftotext`
+	if [[ ${#pdftotext} < 12 ]]
+	then
+		echo -e "\033[31m***xgrep*** Error: pdftotext not installed!\033[0m" >&2
+		echo $E_NOT_FOUND
+	else
+		echo $E_OK
+	fi
+}
+
+function xgreppdf()
+{
+	pdftotext=$(checkpdftotext)
+	if [[ "x"$pdftotext == "x"$E_OK ]]
+	then
+		echo -e "\033[33m***xgrep*** Note: the line number is just suggested, not precise maybe.\033[0m"
+		find . -iname '*.pdf' -print -exec pdftotext {} /tmp/tmp.txt \; -exec grep -n --color "$@" /tmp/tmp.txt \;
+	fi
+}
+
+function xgrepipdf()
+{
+	pdftotext=$(checkpdftotext)
+	if [[ "x"$pdftotext == "x"$E_OK ]]
+	then
+		echo -e "\033[33m***xgrep*** Note: the line number is just suggested, not precise maybe.\033[0m"
+		find . -iname '*.pdf' -print -exec pdftotext {} /tmp/tmp.txt \; -exec grep -n -i --color "$@" /tmp/tmp.txt \;
+	fi
+}
+
+# you can add more type if you like...
+
+##############################
+# search process and more... #
+##############################
+
+# history
+function xgrephistory()
+{
+	history | grep "$@"
+}
+
+function xgrepihistory()
+{
+	history | grep -i "$@"
+}
+
+# ps
+function xgrepps()
+{
+	ps ax | grep "$@"
+}
+
+function xgrepips()
+{
+	ps ax | grep -i "$@"
+}
+
+# netstat
+function xgrepnetstat()
+{
+	netstat -anpt | grep "$@"
+}
+
+function xgrepinetstat()
+{
+	netstat -anpt | grep -i "$@"
+}
+
+### END ###

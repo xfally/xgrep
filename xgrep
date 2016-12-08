@@ -183,6 +183,19 @@ function xgrepijs()
 	_xgrep "$@" $_xregexjs 1
 }
 
+# lua
+_xregexlua=".+\.\(lua\)"
+
+function xgreplua()
+{
+	_xgrep "$@" $_xregexlua
+}
+
+function xgrepilua()
+{
+	_xgrep "$@" $_xregexlua 1
+}
+
 # resource file, like xml, json...
 _xregexres=".+\.\(xml\|json\)"
 

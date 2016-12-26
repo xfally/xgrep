@@ -5,7 +5,7 @@
 # Licence: MIT
 
 # How to install and active?
-# 1. Copy me to ~/bin/ or any path the var $PATH includes.
+# 1. Run `./install.sh` to create symbolic link in ~/bin/.
 # 2a. Do `. ~/bin/xgrep` in your shell to active all functions.
 # 2b. Recommend to add `. ~/bin/xgrep` in your ~/.bashrc file,
 #     then you don't have to do active every time after one new shell open.
@@ -51,11 +51,13 @@ function _xfind()
 	if [[ "x$2" == "x1" ]]
 	then
 		local ignorecase="-iname" # ignore case of filename
+		local ignorecase2="-i" # ignore case of filename
 	else
 		local ignorecase="-name"
+		local ignorecase2=""
 	fi
 
-	find . $_ignore_these_files -o $ignorecase "*$key*" -print | grep "$key"
+	find . $_ignore_these_files -o $ignorecase "*$key*" -print | grep $ignorecase2 "$key"
 }
 
 # any files

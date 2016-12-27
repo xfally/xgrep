@@ -215,13 +215,12 @@ function xgrepires()
 # depend on *pdftotext*
 function checkpdftotext()
 {
-	local pdftotext=`whereis -b -B /usr/bin -f pdftotext`
-	if [[ ${#pdftotext} < 12 ]]
+	if [[ -f /usr/bin/pdftotext ]]
 	then
+		echo $E_OK
+	else
 		echo -e "\033[31m***xgrep*** Error: pdftotext not installed!\033[0m" >&2
 		echo $E_NOT_FOUND
-	else
-		echo $E_OK
 	fi
 }
 

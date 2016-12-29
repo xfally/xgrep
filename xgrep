@@ -57,7 +57,7 @@ function _xfind()
 		local ignorecase2=""
 	fi
 
-	find . $_ignore_these_files -o $ignorecase "*$key*" -print | grep $ignorecase2 "$key"
+	find . $_ignore_these_files -o $ignorecase "*$key*" -print | grep $ignorecase2 --color "$key"
 }
 
 # any files
@@ -253,34 +253,34 @@ function xgrepipdf()
 # history
 function xgrephistory()
 {
-	history | grep "$@"
+	history | grep --color "$@"
 }
 
 function xgrepihistory()
 {
-	history | grep -i "$@"
+	history | grep -i --color "$@"
 }
 
 # ps
 function xgrepps()
 {
-	ps ax | grep "$@"
+	ps ax | grep --color "$@"
 }
 
 function xgrepips()
 {
-	ps ax | grep -i "$@"
+	ps ax | grep -i --color "$@"
 }
 
 # netstat
 function xgrepnetstat()
 {
-	netstat -anpt | grep "$@"
+	netstat -anpt | grep --color "$@"
 }
 
 function xgrepinetstat()
 {
-	netstat -anpt | grep -i "$@"
+	netstat -anpt | grep -i --color "$@"
 }
 
 ### END ###

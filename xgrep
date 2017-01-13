@@ -1,15 +1,21 @@
 #!/bin/bash
-# This *grep* script is created to find file or search content from current path (recursively) in your shell.
-# Ver 0.1
+###############################################################
+# This script is created to find file or search content
+# from current path (recursively) in your shell.
+#
+# Ver 0.2
 # by pax (coolwinding@gmail.com) 160808
 # Licence: MIT
+###############################################################
 
+###############################################################
 # How to install and active?
 # 1. Run `./install.sh` to create symbolic link in ~/bin/.
 # 2a. Do `. ~/bin/xgrep` in your shell to active all functions.
 # 2b. Recommend to add `. ~/bin/xgrep` in your ~/.bashrc file,
-#     then you don't have to do active every time after one new shell open.
+#     then you can active it every time one new shell open.
 # Now you can do `xfind*` or `xgrep*` function at any path.
+###############################################################
 
 ### START ###
 
@@ -18,9 +24,24 @@
 E_OK=0
 E_NOT_FOUND=71
 
+# use ack if exist
+if [[ -x /usr/bin/ack ]]
+then
+	USE_ACK=1
+else
+	unset USE_ACK
+fi
+#unset USE_ACK # always use grep instead of ack
+
 # ignore some path, e.g. repo, git...
 # you can add more path to ignore
-_ignore_these_files="-iname .repo -prune -o -iname .git -prune -o -iname res-min -prune -o -iname *.swp -prune"
+if [[ $USE_ACK ]]
+then
+	# ack ignore backup files, coredumps and version control directories by default
+	_ignore_these_files="--ignore-dir=res-min"
+else
+	_ignore_these_files="-iname .repo -prune -o -iname .git -prune -o -iname res-min -prune -o -iname *.swp -prune"
+fi
 
 #############
 # find file #
@@ -38,23 +59,31 @@ function _xfind()
 		_xfind_usage
 		return
 	else
-		local key=$2
-	fi
-	#echo $key
+		if [[ "x$1" == "x1" ]]
+		then
+			local ignorecase="-i" # ignore case of filename
+			local ignorecase2="-iname" # ignore case of filename
+		else
+			local ignorecase=""
+			local ignorecase2="-name"
+		fi
 
-	if [[ "x$1" == "x1" ]]
+		shift
+		local key=$@
+		#echo $key
+	fi
+
+	if [[ $USE_ACK ]]
 	then
-		local ignorecase="-iname" # ignore case of filename
-		local ignorecase2="-i" # ignore case of filename
+		ack $_ignore_these_files $ignorecase --color -g $key
 	else
-		local ignorecase="-name"
-		local ignorecase2=""
+		find . $_ignore_these_files -o $ignorecase2 "*$key*" -print | grep $ignorecase --color "$key"
 	fi
-
-	find . $_ignore_these_files -o $ignorecase "*$key*" -print | grep $ignorecase2 --color "$key"
 }
 
+#---------------------------------
 # any files
+#---------------------------------
 function xfind()
 {
 	_xfind 0 "$@"
@@ -81,159 +110,256 @@ function _xgrep()
 		_xgrep_usage
 		return
 	else
-		local key=$3
+		if [[ "x$1" == "x1" ]]
+		then
+			local ignorecase="-i" # ignore case of content
+		else
+			local ignorecase=""
+		fi
+
+		local regex=$2
+		#echo $regex
+
+		shift 2
+		local key=$@
+		#echo $key
 	fi
-	#echo $key
 
-	local regex=$2
-	#echo $regex
-
-	if [[ "x$1" == "x1" ]]
+	if [[ $USE_ACK ]]
 	then
-		local ignorecase="-i" # ignore case of content
+		ack $_ignore_these_files $ignorecase --color $regex "$key"
 	else
-		local ignorecase=""
+		find . $_ignore_these_files -o -type f -iregex "$regex" -print0 | xargs -0 grep $ignorecase --color -n "$key"
 	fi
-
-	# Note: file type (`-iregex`) is case insensitive by default.
-	find . $_ignore_these_files -o -type f -iregex "$regex" -print0 | xargs -0 grep $ignorecase --color -n "$key"
 }
 
+#---------------------------------
 # any files
-_xregex=".+"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregex="--color" # trick
+else
+	_xregex=".+"
+fi
 
 function xgrep()
 {
-	_xgrep 0 $_xregex "$@"
+	_xgrep 0 "$_xregex" "$@"
 }
 
 function xgrepi()
 {
-	_xgrep 1 $_xregex "$@"
+	_xgrep 1 "$_xregex" "$@"
 }
 
+#---------------------------------
 # c, c++, m (objective-c), header
-_xregexc=".+\.\(c\|cc\|cpp\|m\|h\)"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexc="--type=cc --type=objc --type=objcpp"
+else
+	_xregexc=".+\.\(c\|cc\|cpp\|cxx\|xs\|m\|hpp\|hh\|hxx\|h\)"
+fi
 
 function xgrepc()
 {
-	_xgrep 0 $_xregexc "$@"
+	_xgrep 0 "$_xregexc" "$@"
 }
 
 function xgrepic()
 {
-	_xgrep 1 $_xregexc "$@"
+	_xgrep 1 "$_xregexc" "$@"
 }
 
+#---------------------------------
 # just header
-_xregexh=".+\.\(h\)"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexh="--type=hh"
+else
+	_xregexh=".+\.\(h\)"
+fi
 
 function xgreph()
 {
-	_xgrep 0 $_xregexh "$@"
+	_xgrep 0 "$_xregexh" "$@"
 }
 
 function xgrepih()
 {
-	_xgrep 1 $_xregexh "$@"
+	_xgrep 1 "$_xregexh" "$@"
 }
 
+#---------------------------------
 # java
-_xregexjava=".+\.\(java\)"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexjava="--type=java"
+else
+	_xregexjava=".+\.\(java\)"
+fi
 
 function xgrepjava()
 {
-	_xgrep 0 $_xregexjava "$@"
+	_xgrep 0 "$_xregexjava" "$@"
 }
 
 function xgrepijava()
 {
-	_xgrep 1 $_xregexjava "$@"
+	_xgrep 1 "$_xregexjava" "$@"
 }
 
-# makefile
-_xregexmk=".*\(Makefile\|\.mk\|\.bb\)"
+#---------------------------------
+# make, cmake
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexmk="--type=make --type-add make:ext:bb --type=cmake"
+else
+	_xregexmk=".*\(Makefile\|\.mk\|\.mak\|\.bb\|CMakeLists\.txt\|\.cmake\)"
+fi
 
 function xgrepmk()
 {
-	_xgrep 0 $_xregexmk "$@"
+	_xgrep 0 "$_xregexmk" "$@"
 }
 
 function xgrepimk()
 {
-	_xgrep 1 $_xregexmk "$@"
+	_xgrep 1 "$_xregexmk" "$@"
 }
 
+#---------------------------------
 # html
-_xregexhtml=".+\.\(html\|htm\)"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexhtml="--type=html"
+else
+	_xregexhtml=".+\.\(html\|htm\)"
+fi
 
 function xgrephtml()
 {
-	_xgrep 0 $_xregexhtml "$@"
+	_xgrep 0 "$_xregexhtml" "$@"
 }
 
 function xgrepihtml()
 {
-	_xgrep 1 $_xregexhtml "$@"
+	_xgrep 1 "$_xregexhtml" "$@"
 }
 
+#---------------------------------
 # css
-_xregexcss=".+\.\(css\)"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexcss="--type=css"
+else
+	_xregexcss=".+\.\(css\)"
+fi
 
 function xgrepcss()
 {
-	_xgrep 0 $_xregexcss "$@"
+	_xgrep 0 "$_xregexcss" "$@"
 }
 
 function xgrepicss()
 {
-	_xgrep 1 $_xregexcss "$@"
+	_xgrep 1 "$_xregexcss" "$@"
 }
 
+#---------------------------------
 # javascript, json
-_xregexjs=".+\.\(js\|json\)"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexjs="--type=js --type=json"
+else
+	_xregexjs=".+\.\(js\|json\)"
+fi
 
 function xgrepjs()
 {
-	_xgrep 0 $_xregexjs "$@"
+	_xgrep 0 "$_xregexjs" "$@"
 }
 
 function xgrepijs()
 {
-	_xgrep 1 $_xregexjs "$@"
+	_xgrep 1 "$_xregexjs" "$@"
 }
 
-# lua
-_xregexlua=".+\.\(lua\)"
-
-function xgreplua()
-{
-	_xgrep 0 $_xregexlua "$@"
-}
-
-function xgrepilua()
-{
-	_xgrep 1 $_xregexlua "$@"
-}
-
+#---------------------------------
 # xml
-_xregexxml=".+\.\(xml\)"
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexxml="--type=xml"
+else
+	_xregexxml=".+\.\(xml\)"
+fi
 
 function xgrepxml()
 {
-	_xgrep 0 $_xregexxml "$@"
+	_xgrep 0 "$_xregexxml" "$@"
 }
 
 function xgrepixml()
 {
-	_xgrep 1 $_xregexxml "$@"
+	_xgrep 1 "$_xregexxml" "$@"
 }
 
-# pdf
-# depend on *pdftotext*
-function checkpdftotext()
+#---------------------------------
+# shell
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexsh="--type=shell"
+else
+	_xregexsh=".+\.\(sh\|bash\|csh\|tcsh\|ksh\|zsh\|fish\)"
+fi
+
+function xgrepsh()
 {
-	if [[ -f /usr/bin/pdftotext ]]
+	_xgrep 0 "$_xregexsh" "$@"
+}
+
+function xgrepish()
+{
+	_xgrep 1 "$_xregexsh" "$@"
+}
+
+#---------------------------------
+# lua
+#---------------------------------
+if [[ $USE_ACK ]]
+then
+	_xregexlua="--type=lua"
+else
+	_xregexlua=".+\.\(lua\)"
+fi
+
+function xgreplua()
+{
+	_xgrep 0 "$_xregexlua" "$@"
+}
+
+function xgrepilua()
+{
+	_xgrep 1 "$_xregexlua" "$@"
+}
+
+#---------------------------------
+# pdf
+#---------------------------------
+# depend on *pdftotext*
+function _checkpdftotext()
+{
+	if [[ -x /usr/bin/pdftotext ]]
 	then
 		echo $E_OK
 	else
@@ -242,33 +368,54 @@ function checkpdftotext()
 	fi
 }
 
-function xgreppdf()
+function _xgreppdf()
 {
-	pdftotext=$(checkpdftotext)
+	pdftotext=$(_checkpdftotext)
 	if [[ "x"$pdftotext == "x"$E_OK ]]
 	then
+		if [[ -z $2 ]]
+		then
+			_xgrep_usage
+			return
+		else
+			if [[ "x$1" == "x1" ]]
+			then
+				local ignorecase="-i"
+			else
+				local ignorecase=""
+			fi
+
+			shift
+			local key=$@
+			#echo $key
+		fi
 		echo -e "\033[33m***xgrep*** Note: the line number is just suggested, not precise maybe.\033[0m"
-		find . -iname '*.pdf' -print -exec pdftotext {} /tmp/tmp.txt \; -exec grep -n --color "$@" /tmp/tmp.txt \;
+		find . -iname '*.pdf' -print -exec pdftotext {} /tmp/tmp.txt \; -exec grep -n $ignorecase --color "$key" /tmp/tmp.txt \;
 	fi
+
+}
+
+function xgreppdf()
+{
+	_xgreppdf 0 "$@"
 }
 
 function xgrepipdf()
 {
-	pdftotext=$(checkpdftotext)
-	if [[ "x"$pdftotext == "x"$E_OK ]]
-	then
-		echo -e "\033[33m***xgrep*** Note: the line number is just suggested, not precise maybe.\033[0m"
-		find . -iname '*.pdf' -print -exec pdftotext {} /tmp/tmp.txt \; -exec grep -n -i --color "$@" /tmp/tmp.txt \;
-	fi
+	_xgreppdf 1 "$@"
 }
 
+#---------------------------------
 # you can add more type if you like...
+#---------------------------------
 
 ##############################
 # search process and more... #
 ##############################
 
+#---------------------------------
 # history
+#---------------------------------
 function xgrephistory()
 {
 	history | grep --color "$@"
@@ -279,7 +426,9 @@ function xgrepihistory()
 	history | grep -i --color "$@"
 }
 
+#---------------------------------
 # ps
+#---------------------------------
 function xgrepps()
 {
 	ps ax | grep --color "$@"
@@ -290,7 +439,9 @@ function xgrepips()
 	ps ax | grep -i --color "$@"
 }
 
+#---------------------------------
 # netstat
+#---------------------------------
 function xgrepnetstat()
 {
 	netstat -anpt | grep --color "$@"

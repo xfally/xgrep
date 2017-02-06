@@ -414,6 +414,19 @@ function xgrepipdf()
 ##############################
 
 #---------------------------------
+# env
+#---------------------------------
+function xgrepenv()
+{
+	env | grep --color "$@"
+}
+
+function xgrepienv()
+{
+	env | grep -i --color "$@"
+}
+
+#---------------------------------
 # history
 #---------------------------------
 function xgrephistory()

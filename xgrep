@@ -11,10 +11,9 @@
 ###############################################################
 # How to install and active?
 # 1. Run `./install.sh` to create symbolic link in ~/bin/.
-# 2a. Do `. ~/bin/xgrep` in your shell to active all functions.
-# 2b. Recommend to add `. ~/bin/xgrep` in your ~/.bashrc file,
-#     then you can active it every time one new shell open.
-# Now you can do `xfind*` or `xgrep*` function at any path.
+# 2. Add `. ~/bin/xgrep` in your ~/.bashrc,
+#    then it will be actived every time one new shell open.
+# Now you can run `xfind*` or `xgrep*` function at any path.
 ###############################################################
 
 ### START ###
@@ -24,24 +23,15 @@
 E_OK=0
 E_NOT_FOUND=71
 
-# use ack if exist
-if [[ -x /usr/bin/ack ]]
-then
-	USE_ACK=1
-else
-	unset USE_ACK
-fi
-#unset USE_ACK # always use grep instead of ack
+# when search content, use ack or grep?
+# TIP: you can assign or unset the var in your shell to change search mode.
+XGREP_USE_ACK=1 # always use ack
+#unset XGREP_USE_ACK # always use grep
 
-# ignore some path, e.g. repo, git...
-# you can add more path to ignore
-if [[ $USE_ACK ]]
-then
-	# ack ignore backup files, coredumps and version control directories by default
-	_ignore_these_files="--ignore-dir=res-min"
-else
-	_ignore_these_files="-iname .repo -prune -o -iname .git -prune -o -iname res-min -prune -o -iname *.swp -prune"
-fi
+# ignore some file or path, e.g. repo, git... you can add more path to ignore
+grep_ignore_these_files="-iname .repo -prune -o -iname .git -prune -o -iname *.min.js -prune -o -iname *.min.css -prune -o -iname *.swp -prune"
+# ack ignore backup files, coredumps and version control directories by default. run `ack --dump` for more.
+ack_ignore_these_files=""
 
 #############
 # find file #
@@ -54,31 +44,25 @@ function _xfind_usage()
 
 function _xfind()
 {
-	if [[ -z $2 ]]
-	then
-		_xfind_usage
-		return
-	else
-		if [[ "x$1" == "x1" ]]
-		then
-			local ignorecase="-i" # ignore case of filename
-			local ignorecase2="-iname" # ignore case of filename
-		else
-			local ignorecase=""
-			local ignorecase2="-name"
-		fi
+	[ -z $2 ] && _xfind_usage && return;
 
-		shift
-		local key=$@
-		#echo $key
+	if [[ "x$1" == "x1" ]]
+	then
+		local ignorecase="-i" # ignore case of filename
+		local ignorecase2="-iname" # ignore case of filename
+	else
+		local ignorecase=""
+		local ignorecase2="-name"
 	fi
 
-	if [[ $USE_ACK ]]
-	then
-		ack $_ignore_these_files $ignorecase --color -g $key
-	else
-		find . $_ignore_these_files -o $ignorecase2 "*$key*" -print | grep $ignorecase --color "$key"
-	fi
+	shift
+	local key=$@
+	#echo $key
+
+	# ack can not search tar file... always use find instead.
+	#[[ $XGREP_USE_ACK ]] && ack $ack_ignore_these_files $ignorecase --color -g $key || {
+		find . $grep_ignore_these_files -o $ignorecase2 "*$key*" -print | grep $ignorecase --color "$key"
+	#}
 }
 
 #---------------------------------
@@ -105,252 +89,209 @@ function _xgrep_usage()
 
 function _xgrep()
 {
-	if [[ -z $3 ]]
+	[ -z $3 ] && _xgrep_usage && return;
+
+	if [[ "x$1" == "x1" ]]
 	then
-		_xgrep_usage
-		return
+		local ignorecase="-i" # ignore case of content
 	else
-		if [[ "x$1" == "x1" ]]
-		then
-			local ignorecase="-i" # ignore case of content
-		else
-			local ignorecase=""
-		fi
-
-		local regex=$2
-		#echo $regex
-
-		shift 2
-		local key=$@
-		#echo $key
+		local ignorecase=""
 	fi
 
-	if [[ $USE_ACK ]]
+	if [[ $2 == "any" ]]
 	then
-		ack $_ignore_these_files $ignorecase --color $regex "$key"
+		local ack_regex=$ack_regex_any
+		local grep_regex=$grep_regex_any
 	else
-		find . $_ignore_these_files -o -type f -iregex "$regex" -print0 | xargs -0 grep $ignorecase --color -n "$key"
+		eval local ack_regex=\$ack_regex_${2}
+		eval local grep_regex=\$grep_regex_${2}
 	fi
+	#echo ack_regex: $ack_regex
+	#echo grep_regex: $grep_regex
+
+	shift 2
+	local key=$@
+	#echo key: $key
+
+	[[ $XGREP_USE_ACK ]] &&  ack $ack_ignore_these_files $ignorecase --color $ack_regex "$key" || {
+		find . $grep_ignore_these_files -o -type f -iregex "$grep_regex" -print0 | xargs -0 grep $ignorecase --color -n "$key"
+	}
 }
 
 #---------------------------------
 # any files
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregex="--color" # trick
-else
-	_xregex=".+"
-fi
+ack_regex_any="--color" # trick
+grep_regex_any=".+"
 
 function xgrep()
 {
-	_xgrep 0 "$_xregex" "$@"
+	_xgrep 0 "any" "$@"
 }
 
 function xgrepi()
 {
-	_xgrep 1 "$_xregex" "$@"
+	_xgrep 1 "any" "$@"
 }
 
 #---------------------------------
 # c, c++, m (objective-c), header
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexc="--type=cc --type=objc --type=objcpp"
-else
-	_xregexc=".+\.\(c\|cc\|cpp\|cxx\|xs\|m\|hpp\|hh\|hxx\|h\)"
-fi
+ack_regex_c="--type=cc --type=objc --type=objcpp"
+grep_regex_c=".+\.\(c\|cc\|cpp\|cxx\|xs\|m\|hpp\|hh\|hxx\|h\)"
 
 function xgrepc()
 {
-	_xgrep 0 "$_xregexc" "$@"
+	_xgrep 0 "c" "$@"
 }
 
 function xgrepic()
 {
-	_xgrep 1 "$_xregexc" "$@"
+	_xgrep 1 "c" "$@"
 }
 
 #---------------------------------
 # just header
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexh="--type=hh"
-else
-	_xregexh=".+\.\(h\)"
-fi
+ack_regex_h="--type=hh"
+grep_regex_h=".+\.\(h\)"
 
 function xgreph()
 {
-	_xgrep 0 "$_xregexh" "$@"
+	_xgrep 0 "h" "$@"
 }
 
 function xgrepih()
 {
-	_xgrep 1 "$_xregexh" "$@"
+	_xgrep 1 "h" "$@"
 }
 
 #---------------------------------
 # java
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexjava="--type=java"
-else
-	_xregexjava=".+\.\(java\)"
-fi
+ack_regex_java="--type=java"
+grep_regex_java=".+\.\(java\)"
 
 function xgrepjava()
 {
-	_xgrep 0 "$_xregexjava" "$@"
+	_xgrep 0 "java" "$@"
 }
 
 function xgrepijava()
 {
-	_xgrep 1 "$_xregexjava" "$@"
+	_xgrep 1 "java" "$@"
 }
 
 #---------------------------------
 # make, cmake
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexmk="--type=make --type-add make:ext:bb --type=cmake"
-else
-	_xregexmk=".*\(Makefile\|\.mk\|\.mak\|\.bb\|CMakeLists\.txt\|\.cmake\)"
-fi
+ack_regex_mk="--type=make --type-add make:ext:bb --type=cmake"
+grep_regex_mk=".*\(Makefile\|\.mk\|\.mak\|\.bb\|CMakeLists\.txt\|\.cmake\)"
 
 function xgrepmk()
 {
-	_xgrep 0 "$_xregexmk" "$@"
+	_xgrep 0 "mk" "$@"
 }
 
 function xgrepimk()
 {
-	_xgrep 1 "$_xregexmk" "$@"
+	_xgrep 1 "mk" "$@"
 }
 
 #---------------------------------
 # html
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexhtml="--type=html"
-else
-	_xregexhtml=".+\.\(html\|htm\)"
-fi
+ack_regex_html="--type=html"
+grep_regex_html=".+\.\(html\|htm\)"
 
 function xgrephtml()
 {
-	_xgrep 0 "$_xregexhtml" "$@"
+	_xgrep 0 "html" "$@"
 }
 
 function xgrepihtml()
 {
-	_xgrep 1 "$_xregexhtml" "$@"
+	_xgrep 1 "html" "$@"
 }
 
 #---------------------------------
 # css
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexcss="--type=css"
-else
-	_xregexcss=".+\.\(css\)"
-fi
+ack_regex_css="--type=css"
+grep_regex_css=".+\.\(css\)"
 
 function xgrepcss()
 {
-	_xgrep 0 "$_xregexcss" "$@"
+	_xgrep 0 "css" "$@"
 }
 
 function xgrepicss()
 {
-	_xgrep 1 "$_xregexcss" "$@"
+	_xgrep 1 "css" "$@"
 }
 
 #---------------------------------
 # javascript, json
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexjs="--type=js --type=json"
-else
-	_xregexjs=".+\.\(js\|json\)"
-fi
+ack_regex_js="--type=js --type=json"
+grep_regex_js=".+\.\(js\|json\)"
 
 function xgrepjs()
 {
-	_xgrep 0 "$_xregexjs" "$@"
+	_xgrep 0 "js" "$@"
 }
 
 function xgrepijs()
 {
-	_xgrep 1 "$_xregexjs" "$@"
+	_xgrep 1 "js" "$@"
 }
 
 #---------------------------------
 # xml
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexxml="--type=xml"
-else
-	_xregexxml=".+\.\(xml\)"
-fi
+ack_regex_xml="--type=xml"
+grep_regex_xml=".+\.\(xml\)"
 
 function xgrepxml()
 {
-	_xgrep 0 "$_xregexxml" "$@"
+	_xgrep 0 "xml" "$@"
 }
 
 function xgrepixml()
 {
-	_xgrep 1 "$_xregexxml" "$@"
+	_xgrep 1 "xml" "$@"
 }
 
 #---------------------------------
 # shell
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexsh="--type=shell"
-else
-	_xregexsh=".+\.\(sh\|bash\|csh\|tcsh\|ksh\|zsh\|fish\)"
-fi
+ack_regex_sh="--type=shell"
+grep_regex_sh=".+\.\(sh\|bash\|csh\|tcsh\|ksh\|zsh\|fish\)"
 
 function xgrepsh()
 {
-	_xgrep 0 "$_xregexsh" "$@"
+	_xgrep 0 "sh" "$@"
 }
 
 function xgrepish()
 {
-	_xgrep 1 "$_xregexsh" "$@"
+	_xgrep 1 "sh" "$@"
 }
 
 #---------------------------------
 # lua
 #---------------------------------
-if [[ $USE_ACK ]]
-then
-	_xregexlua="--type=lua"
-else
-	_xregexlua=".+\.\(lua\)"
-fi
+ack_regex_lua="--type=lua"
+grep_regex_lua=".+\.\(lua\)"
 
 function xgreplua()
 {
-	_xgrep 0 "$_xregexlua" "$@"
+	_xgrep 0 "lua" "$@"
 }
 
 function xgrepilua()
 {
-	_xgrep 1 "$_xregexlua" "$@"
+	_xgrep 1 "lua" "$@"
 }
 
 #---------------------------------

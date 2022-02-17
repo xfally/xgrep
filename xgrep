@@ -25,12 +25,15 @@ E_NOT_FOUND=71
 
 # when search content, use ack or grep at first?
 # TIP: you can re-assign or unset the var in your shell to change search mode.
-XGREP_USE_ACK=1 # use ack at first
+XGREP_USE_ACK=0 # use ack at first
 
 # ignore some file or path, e.g. repo, git... you can add more path to ignore
 grep_ignore_these_files="-iname .repo -prune -o -iname .git -prune -o -iname *.min.js -prune -o -iname *.min.css -prune -o -iname *.swp -prune"
 # ack ignore backup files, coredumps and version control directories by default. run `ack --dump` for more.
 ack_ignore_these_files=""
+
+P=`dirname $(readlink -f $0)`
+#echo "[INFO] project path: ${P}"
 
 #############
 # find file #
@@ -38,12 +41,19 @@ ack_ignore_these_files=""
 
 function _xfind_usage()
 {
-	echo -e "Usage: \033[31mxfind[i] {filename}\033[0m Find any file from current path (recursively)!\n" >&2
+	echo -e "Usage: \033[31mxfind[i] {filename} {path}\033[0m Find any file (filename) from one path or current path (recursively)!" >&2
 }
 
 function _xfind()
 {
 	[ -z $2 ] && _xfind_usage && return;
+
+	old_path=$(pwd)
+	if [ ! -z $3 ]
+	then
+		echo "[INFO] cd to path $3"
+		cd $3;
+	fi
 
 	if [[ "x$1" == "x1" ]]
 	then
@@ -55,13 +65,15 @@ function _xfind()
 	fi
 
 	shift
-	local key=$@
-	#echo $key
+	local key=$1
+	#echo "key: $key"
 
 	# ack can not search tar file... always use find instead.
 	#[[ $XGREP_USE_ACK == 1 ]] && ack $ack_ignore_these_files $ignorecase --color -g $key 2>/dev/null || {
 		find . $grep_ignore_these_files -o $ignorecase2 "*$key*" -print | grep $ignorecase --color "$key"
 	#}
+
+	cd $old_path
 }
 
 #---------------------------------
@@ -83,12 +95,22 @@ function xfindi()
 
 function _xgrep_usage()
 {
-	echo -e "Usage: \033[31mxgrep[i][{type}] {content}\033[0m Search any content from current path (recursively)!\n" >&2
+	echo -e "Usage: \033[31mxgrep[i][{type}] {content} {path}\033[0m Search any content from one path or current path (recursively)!
+example1: xgrep Licence $P
+example2: xgrepi \"How to\" $P
+example3: xgrepsh bash $P" >&2
 }
 
 function _xgrep()
 {
 	[ -z $3 ] && _xgrep_usage && return;
+
+	old_path=$(pwd)
+	if [ ! -z $4 ]
+	then
+		echo "[INFO] cd to path $4"
+		cd $4;
+	fi
 
 	if [[ "x$1" == "x1" ]]
 	then
@@ -109,12 +131,14 @@ function _xgrep()
 	#echo grep_regex: $grep_regex
 
 	shift 2
-	local key=$@
-	#echo key: $key
+	local key=$1
+	#echo "key: $key"
 
 	[[ $XGREP_USE_ACK == 1 ]] && ack $ack_ignore_these_files $ignorecase --color $ack_regex "$key" 2>/dev/null || {
 		find . $grep_ignore_these_files -o -type f -iregex "$grep_regex" -print0 | xargs -0 grep $ignorecase --color -n "$key"
 	}
+
+	cd $old_path
 }
 
 #---------------------------------
@@ -303,7 +327,7 @@ function _checkpdftotext()
 	then
 		echo $E_OK
 	else
-		echo -e "\033[31m***xgrep*** Error: pdftotext not installed!\033[0m" >&2
+		echo -e "\033[31m[ERROR] pdftotext (from poppler-utils) not installed!\033[0m" >&2
 		echo $E_NOT_FOUND
 	fi
 }
@@ -325,14 +349,20 @@ function _xgreppdf()
 				local ignorecase=""
 			fi
 
+			old_path=$(pwd)
+			if [ ! -z $3 ]
+			then
+				echo "[INFO] cd to path $3"
+				cd $3;
+			fi
+
 			shift
-			local key=$@
-			#echo $key
+			local key=$1
+			#echo "key: $key"
 		fi
-		echo -e "\033[33m***xgrep*** Note: the line number is just suggested, not precise maybe.\033[0m"
+		echo -e "\033[33m[INFO]: the line number is just suggested, not precise maybe.\033[0m"
 		find . -iname '*.pdf' -print -exec pdftotext {} /tmp/tmp.txt \; -exec grep -n $ignorecase --color "$key" /tmp/tmp.txt \;
 	fi
-
 }
 
 function xgreppdf()

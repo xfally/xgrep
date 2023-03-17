@@ -32,7 +32,7 @@ grep_ignore_these_files="-iname .repo -prune -o -iname .git -prune -o -iname *.m
 # ack ignore backup files, coredumps and version control directories by default. run `ack --dump` for more.
 ack_ignore_these_files=""
 
-P=`dirname $(readlink -f $0)`
+#P=`dirname $(readlink -f $0)`
 #echo "[INFO] project path: ${P}"
 
 #############
@@ -95,10 +95,10 @@ function xfindi()
 
 function _xgrep_usage()
 {
-	echo -e "Usage: \033[31mxgrep[i][{type}] {content} {path}\033[0m Search any content from one path or current path (recursively)!
-example1: xgrep Licence $P
-example2: xgrepi \"How to\" $P
-example3: xgrepsh bash $P" >&2
+	echo -e "Usage: \033[31mxgrep[i][{type}] {content} [{path}]\033[0m Search any content from one path or current path (recursively)!
+example1: xgrep Licence
+example2: xgrepi \"How to\" /some/path
+example3: xgrepsh \"function\"" >&2
 }
 
 function _xgrep()
